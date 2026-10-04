@@ -582,7 +582,112 @@
     <p>Paste your syllabus, let AI extract topics, and get a weighted day-by-day study schedule.</p>
   </header>
 
+  <!-- Stats -->
+  <div class="stats-bar" id="stats-bar" style="display: none;">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-exams">0</div>
+      <div class="stat-label">Exams</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-topics">0</div>
+      <div class="stat-label">Topics</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-hours">0</div>
+      <div class="stat-label">Study Hours</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-done">0%</div>
+      <div class="stat-label">Complete</div>
+    </div>
+  </div>
+
+  <!-- Add Exam Card -->
+  <div class="card" id="add-exam-card">
+    <div class="card-header">
+      <h2>Add Exam</h2>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="exam-name">Exam Name</label>
+        <input type="text" id="exam-name" placeholder="e.g. Go Backend Development">
+      </div>
+      <div class="form-group">
+        <label for="exam-date">Exam Date</label>
+        <input type="date" id="exam-date">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="syllabus-text">Syllabus / Topics</label>
+      <textarea id="syllabus-text" placeholder="Paste your syllabus, lecture notes, or topic list here...&#10;&#10;Example:&#10;Unit 1: Goroutines, channels, select statement&#10;Unit 2: HTTPS and TLS in Go&#10;Unit 3: Building REST APIs with net/http"></textarea>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btn-extract" onclick="extractAndAdd()">
+        <span id="btn-extract-text">Import with AI</span>
+        <div class="spinner" id="btn-spinner" style="display:none;"></div>
+      </button>
+      <button class="btn btn-secondary" onclick="showManualMode()">Add Manually</button>
+    </div>
+
+    <!-- AI-extracted topics preview -->
+    <div id="topics-preview-area" style="display:none;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:1.25rem;">
+        <h3 style="color:var(--text-secondary);">Extracted Topics</h3>
+        <span id="extract-time" style="font-size:0.75rem; color:var(--text-muted);"></span>
+      </div>
+      <div class="topics-preview" id="topics-preview"></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="confirmAndAddExam()">Add to Schedule</button>
+        <button class="btn btn-secondary" onclick="cancelExtraction()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Manual mode -->
+    <div id="manual-mode" style="display:none; margin-top:1.25rem;">
+      <div class="form-group">
+        <label for="manual-topics">Topics (one per line, with optional hours)</label>
+        <textarea id="manual-topics" placeholder="Goroutines — 2h&#10;Channels — 2.5h&#10;Select Statement — 1.5h&#10;Or just:&#10;Goroutines&#10;Channels&#10;Select Statement"></textarea>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="addManualExam()">Add to Schedule</button>
+        <button class="btn btn-secondary" onclick="cancelManual()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exams / Schedule -->
+  <div id="exams-container"></div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="empty-state">
+    
+    <p>No exams yet. Add one above to generate your study schedule.</p>
+  </div>
+
 </div>
+
+<!-- Study Guide Modal -->
+<div id="guide-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-primary); z-index: 100; overflow-y: auto; padding: 2rem 1.5rem;">
+  <div class="container" style="max-width: 700px; padding: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+      <h2 id="guide-title">Study Guide</h2>
+      <button class="btn btn-secondary" onclick="closeGuide()">Close</button>
+    </div>
+    
+    <div id="guide-loading" style="display: none; text-align: center; padding: 3rem 0;">
+      <div class="spinner" style="margin: 0 auto 1rem; border-color: var(--border); border-top-color: var(--text-primary); width: 30px; height: 30px;"></div>
+      <p style="color: var(--text-muted);">Generating study guide...</p>
+    </div>
+
+    <div id="guide-content" style="display: none;"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
 
 </body>
 </html>
