@@ -689,5 +689,159 @@
 <!-- Toast container -->
 <div class="toast-container" id="toast-container"></div>
 
+<script>
+// ==========================================================================
+// STATE
+// ==========================================================================
+
+const STORAGE_KEY = 'study-helper-data';
+let state = loadState();
+let pendingTopics = [];
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { exams: [] };
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+// ==========================================================================
+// TOAST NOTIFICATIONS
+// ==========================================================================
+
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ==========================================================================
+// AI EXTRACTION
+// ==========================================================================
+
+async function extractAndAdd() {
+  const name = document.getElementById('exam-name').value.trim();
+  const date = document.getElementById('exam-date').value;
+  const text = document.getElementById('syllabus-text').value.trim();
+
+  if (!name) { showToast('Enter an exam name.', 'error'); return; }
+  if (!date) { showToast('Pick an exam date.', 'error'); return; }
+  if (!text) { showToast('Paste your syllabus text.', 'error'); return; }
+
+  const btn = document.getElementById('btn-extract');
+  const btnText = document.getElementById('btn-extract-text');
+  const spinner = document.getElementById('btn-spinner');
+
+  btn.disabled = true;
+  btnText.textContent = 'Extracting topics…';
+  spinner.style.display = 'block';
+
+  try {
+    const resp = await fetch('/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || 'Extraction failed');
+    }
+
+    const data = await resp.json();
+    pendingTopics = data.topics;
+
+    // Show preview
+    renderTopicsPreview(data.topics, data.elapsed_seconds);
+    document.getElementById('topics-preview-area').style.display = 'block';
+    showToast(`Extracted ${data.topics.length} topics in ${data.elapsed_seconds}s`);
+
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = 'Import with AI';
+    spinner.style.display = 'none';
+  }
+}
+
+function renderTopicsPreview(topics, elapsed) {
+  const container = document.getElementById('topics-preview');
+  document.getElementById('extract-time').textContent = `${elapsed}s · ${topics.length} topics`;
+  container.innerHTML = topics.map((t, i) => `
+    <span class="topic-chip">
+      <span class="diff diff-${t.difficulty}">D${t.difficulty}</span>
+      ${escHtml(t.title)}
+      <span class="hours">${t.hours}h</span>
+      <span class="remove-topic" onclick="removePendingTopic(${i})">×</span>
+    </span>
+  `).join('');
+}
+
+function removePendingTopic(index) {
+  pendingTopics.splice(index, 1);
+  renderTopicsPreview(pendingTopics, '—');
+}
+
+function cancelExtraction() {
+  pendingTopics = [];
+  document.getElementById('topics-preview-area').style.display = 'none';
+}
+
+function confirmAndAddExam() {
+  const name = document.getElementById('exam-name').value.trim();
+  const date = document.getElementById('exam-date').value;
+  if (!pendingTopics.length) { showToast('No topics to add.', 'error'); return; }
+
+  addExam(name, date, pendingTopics);
+  pendingTopics = [];
+  document.getElementById('topics-preview-area').style.display = 'none';
+  resetForm();
+}
+
+// ==========================================================================
+// MANUAL MODE
+// ==========================================================================
+
+function showManualMode() {
+  document.getElementById('manual-mode').style.display = 'block';
+}
+
+function cancelManual() {
+  document.getElementById('manual-mode').style.display = 'none';
+  document.getElementById('manual-topics').value = '';
+}
+
+function addManualExam() {
+  const name = document.getElementById('exam-name').value.trim();
+  const date = document.getElementById('exam-date').value;
+  const raw = document.getElementById('manual-topics').value.trim();
+
+  if (!name) { showToast('Enter an exam name.', 'error'); return; }
+  if (!date) { showToast('Pick an exam date.', 'error'); return; }
+  if (!raw) { showToast('Enter at least one topic.', 'error'); return; }
+
+  const topics = raw.split('\n').filter(l => l.trim()).map(line => {
+    // Parse "Topic Name — 2.5h" or "Topic Name - 2h" or just "Topic Name"
+    const match = line.match(/^(.+?)(?:\s*[—\-–]\s*(\d+(?:\.\d+)?)\s*h)?$/i);
+    const title = match ? match[1].trim() : line.trim();
+    const hours = match && match[2] ? parseFloat(match[2]) : 2;
+    return { title, difficulty: 3, hours };
+  });
+
+  addExam(name, date, topics);
+  cancelManual();
+  resetForm();
+}
+</script>
+
 </body>
 </html>
