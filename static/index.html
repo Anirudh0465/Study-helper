@@ -1082,6 +1082,65 @@ function renderExams() {
     `;
   }).join('');
 }
+
+// ==========================================================================
+// STUDY GUIDE
+// ==========================================================================
+
+async function openGuide(examId, topicIndex) {
+  const exam = state.exams.find(e => e.id === examId);
+  const topic = exam.topics[topicIndex];
+  
+  document.getElementById('guide-modal').style.display = 'block';
+  document.getElementById('guide-title').textContent = `Guide: ${topic.title}`;
+  document.getElementById('guide-loading').style.display = 'block';
+  document.getElementById('guide-content').style.display = 'none';
+  document.getElementById('guide-content').innerHTML = '';
+
+  try {
+    const contextLines = exam.topics.map(t => t.title).join(', ');
+    const resp = await fetch('/api/guide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: topic.title, context: `Course: ${exam.name}. All topics: ${contextLines}` })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || 'Guide generation failed');
+    }
+
+    const data = await resp.json();
+    renderGuide(data);
+  } catch (err) {
+    showToast(err.message, 'error');
+    closeGuide();
+  }
+}
+
+function closeGuide() {
+  document.getElementById('guide-modal').style.display = 'none';
+}
+
+function renderGuide(data) {
+  document.getElementById('guide-loading').style.display = 'none';
+  const content = document.getElementById('guide-content');
+  content.style.display = 'block';
+
+  content.innerHTML = `
+    <h3 style="margin-bottom: 1.25rem; color: var(--text-secondary);">Key Concepts</h3>
+    ${data.concepts.map((c, i) => `
+      <div style="margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border);">
+        <p style="font-weight: 700; margin-bottom: 0.35rem;">${i + 1}. ${escHtml(c.name)}</p>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">${escHtml(c.explanation)}</p>
+      </div>
+    `).join('')}
+    <div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border: 1px solid var(--border);">
+      <p style="font-weight: 700; margin-bottom: 0.5rem;">Study Tips</p>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">${escHtml(data.tips)}</p>
+    </div>
+  `;
+}
 </script>
 
 </body>
