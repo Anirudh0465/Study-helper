@@ -982,6 +982,106 @@ function getDayBadge(dateStr) {
   if (diff === 1) return '<span class="day-badge tomorrow">Tomorrow</span>';
   return '';
 }
+
+// ==========================================================================
+// RENDERING
+// ==========================================================================
+
+function renderAll() {
+  renderStats();
+  renderExams();
+}
+
+function renderStats() {
+  const bar = document.getElementById('stats-bar');
+  if (!state.exams.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'grid';
+
+  const totalTopics = state.exams.reduce((s, e) => s + e.topics.length, 0);
+  const totalDone = state.exams.reduce((s, e) => s + e.topics.filter(t => t.done).length, 0);
+  const totalHours = state.exams.reduce((s, e) => s + e.topics.reduce((h, t) => h + t.hours, 0), 0);
+  const pct = totalTopics ? Math.round((totalDone / totalTopics) * 100) : 0;
+
+  document.getElementById('stat-exams').textContent = state.exams.length;
+  document.getElementById('stat-topics').textContent = totalTopics;
+  document.getElementById('stat-hours').textContent = Math.round(totalHours);
+  document.getElementById('stat-done').textContent = `${pct}%`;
+}
+
+function renderExams() {
+  const container = document.getElementById('exams-container');
+  const empty = document.getElementById('empty-state');
+
+  if (!state.exams.length) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  container.innerHTML = state.exams.map(exam => {
+    const schedule = buildSchedule(exam);
+    const done = exam.topics.filter(t => t.done).length;
+    const total = exam.topics.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const today = stripTime(new Date());
+    const examDate = stripTime(new Date(exam.date + 'T00:00:00'));
+    const daysLeft = daysBetween(today, examDate);
+    const daysText = daysLeft < 0 ? 'Exam passed' : daysLeft === 0 ? 'Exam today!' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
+    const isCollapsed = exam.collapsed;
+
+    return `
+      <div class="exam-card">
+        <div class="exam-header" onclick="toggleExam('${exam.id}')">
+          <div class="exam-info">
+            <h3>${escHtml(exam.name)}</h3>
+            <div class="exam-meta">
+              <span>Date: ${formatDate(exam.date)}</span>
+              <span>${daysText}</span>
+              <span>${done}/${total} topics</span>
+            </div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <span class="progress-text">${pct}%</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); exportExam('${exam.id}')" style="margin-right: 8px;">Export</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); replanExam('${exam.id}')" style="margin-right: 8px;">Re-plan</button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteExam('${exam.id}')">Delete</button>
+          <span class="exam-toggle ${isCollapsed ? '' : 'open'}">▼</span>
+        </div>
+        <div class="exam-body ${isCollapsed ? '' : 'visible'}">
+          ${schedule.map((day, dayIdx) => `
+            <div class="schedule-day" style="animation-delay: ${dayIdx * 0.04}s">
+              <div class="day-date">
+                <div class="date-label">${formatDate(day.date)}</div>
+                <div class="day-name">${getDayName(day.date)}</div>
+                ${getDayBadge(day.date)}
+              </div>
+              <div class="day-topics">
+                ${day.topics.map(t => {
+                  if (t.topicIndex === -1) {
+                    return `<div class="day-topic-item"><span class="topic-name" style="color:var(--success);">${t.title}</span></div>`;
+                  }
+                  const checked = exam.topics[t.topicIndex].done ? 'checked' : '';
+                  const doneClass = exam.topics[t.topicIndex].done ? 'done' : '';
+                  return `
+                    <div class="day-topic-item">
+                      <input type="checkbox" ${checked} onchange="toggleTopic('${exam.id}', ${t.topicIndex})">
+                      <span class="topic-name ${doneClass}">${escHtml(t.title)}</span>
+                      <span class="topic-hours">${t.hours}h</span>
+                      <button class="btn btn-secondary btn-sm" style="margin-left: auto; flex-shrink: 0;" onclick="openGuide('${exam.id}', ${t.topicIndex})">Guide</button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 </script>
 
 </body>
