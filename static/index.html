@@ -1141,6 +1141,38 @@ function renderGuide(data) {
     </div>
   `;
 }
+
+// ==========================================================================
+// RE-PLAN
+// ==========================================================================
+
+function replanExam(id) {
+  const exam = state.exams.find(e => e.id === id);
+  if (!exam) return;
+
+  const today = stripTime(new Date());
+  const examDate = stripTime(new Date(exam.date + 'T00:00:00'));
+  const daysLeft = daysBetween(today, examDate);
+
+  if (daysLeft <= 1) {
+    showToast('Not enough days left to re-plan.', 'error');
+    return;
+  }
+
+  const undone = exam.topics.filter(t => !t.done);
+  if (undone.length === 0) {
+    showToast('All topics are already done!', 'success');
+    return;
+  }
+
+  // Reset hours proportionally across remaining undone topics
+  // so the schedule rebuilds cleanly from today.
+  // We don't change the data, just trigger a re-render.
+  // The schedule algorithm already builds from "today" forward,
+  // so it naturally redistributes.
+  showToast(`Schedule re-planned: ${undone.length} remaining topic${undone.length !== 1 ? 's' : ''} across ${daysLeft} days.`);
+  renderAll();
+}
 </script>
 
 </body>
