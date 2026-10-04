@@ -841,6 +841,54 @@ function addManualExam() {
   cancelManual();
   resetForm();
 }
+
+// ==========================================================================
+// EXAM MANAGEMENT
+// ==========================================================================
+
+function addExam(name, date, topics) {
+  const exam = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name,
+    date,
+    topics: topics.map(t => ({ ...t, done: false })),
+    collapsed: false,
+  };
+  state.exams.push(exam);
+  saveState();
+  renderAll();
+  showToast(`"${name}" added with ${topics.length} topics.`);
+}
+
+function deleteExam(id) {
+  const exam = state.exams.find(e => e.id === id);
+  if (!confirm(`Delete "${exam.name}" and all its topics?`)) return;
+  state.exams = state.exams.filter(e => e.id !== id);
+  saveState();
+  renderAll();
+  showToast(`"${exam.name}" deleted.`);
+}
+
+function toggleExam(id) {
+  const exam = state.exams.find(e => e.id === id);
+  exam.collapsed = !exam.collapsed;
+  saveState();
+  renderAll();
+}
+
+function toggleTopic(examId, topicIndex) {
+  const exam = state.exams.find(e => e.id === examId);
+  exam.topics[topicIndex].done = !exam.topics[topicIndex].done;
+  saveState();
+  renderAll();
+}
+
+function resetForm() {
+  document.getElementById('exam-name').value = '';
+  document.getElementById('exam-date').value = '';
+  document.getElementById('syllabus-text').value = '';
+  document.getElementById('manual-topics').value = '';
+}
 </script>
 
 </body>
