@@ -34,3 +34,36 @@ EXTRACT_JSON_SCHEMA = {
     },
     "required": ["topics"],
 }
+
+GUIDE_SYSTEM = """You are a study coach. The user will give you a specific topic they need to study for an exam, along with some context about the course.
+
+Your job:
+1. Break the topic into 3-6 key concepts or subtopics the student should focus on.
+2. For each concept, write a brief 1-2 sentence explanation of what it is and why it matters.
+3. Add a short "study tips" string with practical advice for mastering this topic.
+4. Do NOT add conversational filler or disclaimers. Return ONLY valid JSON.
+
+Output format (strict):
+{"concepts": [{"name": "...", "explanation": "..."}, ...], "tips": "..."}
+"""
+
+GUIDE_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "concepts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "explanation": {"type": "string"}
+                },
+                "required": ["name", "explanation"]
+            },
+            "minItems": 3,
+            "maxItems": 6
+        },
+        "tips": {"type": "string"}
+    },
+    "required": ["concepts", "tips"]
+}

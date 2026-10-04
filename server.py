@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from prompts import EXTRACT_SYSTEM, EXTRACT_JSON_SCHEMA
+from prompts import EXTRACT_SYSTEM, EXTRACT_JSON_SCHEMA, GUIDE_SYSTEM, GUIDE_JSON_SCHEMA
 
 # ---------------------------------------------------------------------------
 # Config
@@ -65,6 +65,22 @@ class Topic(BaseModel):
 
 class ExtractResponse(BaseModel):
     topics: list[Topic]
+    elapsed_seconds: float
+
+
+class GuideRequest(BaseModel):
+    topic: str
+    context: str = ""
+
+
+class GuideConcept(BaseModel):
+    name: str
+    explanation: str
+
+
+class GuideResponse(BaseModel):
+    concepts: list[GuideConcept]
+    tips: str
     elapsed_seconds: float
 
 
@@ -170,6 +186,35 @@ def extract_topics(req: ExtractRequest):
     log.info("← Ollama  topics=%d  elapsed=%.2fs", len(topics), elapsed)
 
     return ExtractResponse(topics=topics, elapsed_seconds=elapsed)
+
+
+@app.post("/api/guide", response_model=GuideResponse)
+def generate_guide(req: GuideRequest):
+    """Generate a study guide for a given topic — key concepts and tips."""
+
+    topic = req.topic.strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topic cannot be empty.")
+
+    user_text = f"Topic: {topic}"
+    if req.context:
+        user_text += f"\nContext: {req.context}"
+
+    start = time.perf_counter()
+    data = call_ollama(user_text, system_prompt=GUIDE_SYSTEM, json_schema=GUIDE_JSON_SCHEMA)
+    elapsed = round(time.perf_counter() - start, 2)
+
+    concepts = data.get("concepts", [])
+    tips = data.get("tips", "")
+    if not concepts:
+        raise HTTPException(
+            status_code=422,
+            detail="Model returned no concepts.",
+        )
+
+    log.info("← Ollama guide  concepts=%d  elapsed=%.2fs", len(concepts), elapsed)
+
+    return GuideResponse(concepts=concepts, tips=tips, elapsed_seconds=elapsed)
 
 
 # ---------------------------------------------------------------------------
