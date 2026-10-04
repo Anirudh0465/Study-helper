@@ -1228,6 +1228,20 @@ function updateThemeSwitch(isDark) {
     label.textContent = 'Light';
   }
 }
+
+// Set default exam date to 2 weeks from now.
+(function init() {
+  const isDark = localStorage.getItem('study-helper-theme') === 'dark';
+  if (isDark) {
+    document.body.classList.add('dark-theme');
+  }
+  updateThemeSwitch(isDark);
+
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  document.getElementById('exam-date').value = d.toISOString().split('T')[0];
+  renderAll();
+})();
 </script>
 
 </body>
