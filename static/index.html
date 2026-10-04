@@ -1173,6 +1173,61 @@ function replanExam(id) {
   showToast(`Schedule re-planned: ${undone.length} remaining topic${undone.length !== 1 ? 's' : ''} across ${daysLeft} days.`);
   renderAll();
 }
+
+// ==========================================================================
+// UTILITIES
+// ==========================================================================
+
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function exportExam(id) {
+  const exam = state.exams.find(e => e.id === id);
+  if (!exam) return;
+  const schedule = buildSchedule(exam);
+  let text = `${exam.name} - Study Plan\nExam Date: ${formatDate(exam.date)}\n\n`;
+  
+  schedule.forEach(day => {
+    text += `== ${formatDate(day.date)} (${getDayName(day.date)}) ==\n`;
+    day.topics.forEach(t => {
+      if (t.topicIndex === -1) {
+        text += `  - Revision Day\n`;
+      } else {
+        const done = exam.topics[t.topicIndex].done ? '[x]' : '[ ]';
+        text += `  ${done} ${t.title} (${t.hours}h)\n`;
+      }
+    });
+    text += '\n';
+  });
+  
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Schedule copied to clipboard!');
+  }).catch(err => {
+    showToast('Failed to copy to clipboard', 'error');
+  });
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('dark-theme');
+  const isDark = document.body.classList.contains('dark-theme');
+  localStorage.setItem('study-helper-theme', isDark ? 'dark' : 'light');
+  updateThemeSwitch(isDark);
+}
+
+function updateThemeSwitch(isDark) {
+  const knob = document.getElementById('theme-knob');
+  const label = document.getElementById('theme-label');
+  if (isDark) {
+    knob.style.transform = 'translateX(20px)';
+    label.textContent = 'Dark';
+  } else {
+    knob.style.transform = 'translateX(0)';
+    label.textContent = 'Light';
+  }
+}
 </script>
 
 </body>
