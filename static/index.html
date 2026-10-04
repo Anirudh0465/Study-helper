@@ -889,6 +889,99 @@ function resetForm() {
   document.getElementById('syllabus-text').value = '';
   document.getElementById('manual-topics').value = '';
 }
+
+// ==========================================================================
+// SCHEDULING ALGORITHM
+// ==========================================================================
+
+function buildSchedule(exam) {
+  const today = stripTime(new Date());
+  const examDate = stripTime(new Date(exam.date + 'T00:00:00'));
+
+  // Leave the last day free for revision.
+  const revisionDate = new Date(examDate);
+  const lastStudyDate = new Date(examDate);
+  lastStudyDate.setDate(lastStudyDate.getDate() - 1);
+
+  // Total available days for studying (from today to lastStudyDate inclusive).
+  let totalDays = Math.max(1, daysBetween(today, lastStudyDate) + 1);
+
+  // Total hours across all topics.
+  const totalHours = exam.topics.reduce((sum, t) => sum + t.hours, 0);
+  if (totalHours === 0) return [];
+
+  // Assign each topic a proportional number of days (minimum 1).
+  const schedule = []; // { date, topics: [{...topic, topicIndex}] }
+  const dateMap = new Map(); // date string → array of topics
+
+  let dayOffset = 0;
+  exam.topics.forEach((topic, idx) => {
+    // Proportional days, minimum 1.
+    const proportion = topic.hours / totalHours;
+    let daysForTopic = Math.max(1, Math.round(proportion * totalDays));
+
+    // Assign this topic to `daysForTopic` consecutive days starting at dayOffset.
+    for (let d = 0; d < daysForTopic; d++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + dayOffset + d);
+
+      // Don't schedule past the last study date.
+      if (date > lastStudyDate) break;
+
+      const key = date.toISOString().split('T')[0];
+      if (!dateMap.has(key)) dateMap.set(key, []);
+      dateMap.get(key).push({ ...topic, topicIndex: idx });
+    }
+    dayOffset += daysForTopic;
+  });
+
+  // Add revision day.
+  const revKey = revisionDate.toISOString().split('T')[0];
+  if (!dateMap.has(revKey)) dateMap.set(revKey, []);
+  dateMap.get(revKey).push({ title: 'Revision Day', difficulty: 0, hours: 0, topicIndex: -1, done: false });
+
+  // Sort by date and build the schedule array.
+  const sortedKeys = [...dateMap.keys()].sort();
+  for (const key of sortedKeys) {
+    schedule.push({
+      date: key,
+      topics: dateMap.get(key),
+    });
+  }
+
+  return schedule;
+}
+
+function stripTime(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function daysBetween(a, b) {
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+function getDayName(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return days[d.getDay()];
+}
+
+function getDayBadge(dateStr) {
+  const today = stripTime(new Date());
+  const d = stripTime(new Date(dateStr + 'T00:00:00'));
+  const diff = daysBetween(today, d);
+
+  if (diff < 0) return '<span class="day-badge overdue">Overdue</span>';
+  if (diff === 0) return '<span class="day-badge today">Today</span>';
+  if (diff === 1) return '<span class="day-badge tomorrow">Tomorrow</span>';
+  return '';
+}
 </script>
 
 </body>
